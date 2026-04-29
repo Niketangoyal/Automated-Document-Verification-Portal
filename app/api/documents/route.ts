@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     const queryParams = {
       isVerified: url.searchParams.get('isVerified') === 'true' ? true : 
                   url.searchParams.get('isVerified') === 'false' ? false : undefined,
-      fileType: url.searchParams.get('fileType') as any || undefined,
+      fileType: url.searchParams.get('fileType') as string || undefined,
       limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit') as string) : 10,
       page: url.searchParams.get('page') ? parseInt(url.searchParams.get('page') as string) : 1,
     };
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     const skip = (validatedQuery.page - 1) * validatedQuery.limit;
     
     // Create query filters
-    const filters: any = { userId: user._id };
+    const filters: Record<string, unknown> = { userId: user._id };
     
     if (validatedQuery.isVerified !== undefined) {
       filters.isVerified = validatedQuery.isVerified;

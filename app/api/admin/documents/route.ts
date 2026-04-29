@@ -10,7 +10,7 @@ async function isAdmin(clerkId: string) {
   try {
     const user = await User.findOne({ clerkId });
     return user?.role === 'admin';
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     const userId = url.searchParams.get('userId');
     
     // Build filter
-    const filter: any = {};
+    const filter: Record<string, unknown> = {};
     
     if (status) {
       filter.status = status;
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
     
     // Build sort
-    const sort: any = {};
+    const sort: Record<string, 1 | -1> = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
     
     // Get total count for pagination

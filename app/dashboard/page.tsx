@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Clock, FileCheck, FilePlus, FileX, Upload } from "lucide-react";
+import { CheckCircle, Clock, FileCheck, FileX, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 export interface DocumentType {
@@ -47,7 +47,7 @@ export default function DashboardPage() {
         console.log(data)
         setRecentDocuments(data.documents || []);
         
-      } catch (err) {
+      } catch {
         toast.error("Upload failed. Please try again.");
       } 
     };
@@ -78,8 +78,8 @@ export default function DashboardPage() {
         }
         return doc;
       }));
-    } catch (error: any) {
-      toast.error(error.message || "Failed to verify document");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to verify document");
       // Update state to failed if it failed
       setRecentDocuments(prev => prev.map(doc => {
         if (doc._id === docId) {

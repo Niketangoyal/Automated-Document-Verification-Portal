@@ -11,6 +11,7 @@ import { userSchema } from '@/lib/validations';
  * Syncs the current authenticated user from Clerk to our MongoDB database
  */
 export async function POST(req: NextRequest) {
+  void req;
   try {
     // Get the current authenticated user
     const { userId } = await auth();
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
  * Gets the current authenticated user from our MongoDB database
  */
 export async function GET(req: NextRequest) {
+  void req;
   try {
     // Get the current authenticated user
     const { userId } =await auth();

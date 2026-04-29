@@ -225,7 +225,7 @@ export async function PATCH(
     }
 
     // Update only the fields that are provided
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     
     if (validatedData.isVerified !== undefined) {
       updateData.isVerified = validatedData.isVerified;

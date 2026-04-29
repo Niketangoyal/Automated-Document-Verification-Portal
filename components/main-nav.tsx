@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FileCheck, Home, Upload, User } from "lucide-react";
+import { FileCheck, Home, Upload } from "lucide-react";
 
 const navItems = [
   {

@@ -4,9 +4,7 @@ import { createErrorResponse, createSuccessResponse } from '@/lib/api-utils';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
 import Document from '@/models/Document';
-import { documentSchema } from '@/lib/validations';
 import { uploadToCloudinary } from '@/lib/cloudinary';
-import { extractTextFromImage, verifyDocumentText } from '@/lib/tesseract';
 
 /**
  * POST /api/documents/upload
@@ -52,8 +50,6 @@ export async function POST(req: NextRequest) {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const base64String = buffer.toString("base64"); // Convert to base64
-        const mimeType = file.type; // e.g., "image/png" or "application/pdf"
-        const fileExtension = file.name.split('.').pop(); // Extract extension (e.g., "png", "pdf")
     
         // We use the documentType provided by the frontend as the primary fileType
         const fileType = documentType; 
@@ -64,7 +60,7 @@ export async function POST(req: NextRequest) {
       })
     );
     // Create a document record in the database (without text extraction at first)
-    const documents = await Document.insertMany(
+    await Document.insertMany(
       uploadedFiles.map((file) => ({
         userId: user._id,
         fileName: file.fileName,
@@ -92,42 +88,3 @@ export async function POST(req: NextRequest) {
     return createErrorResponse(error);
   }
 }
-
-/**
- * Process a document to extract text and verify it
- * This would ideally be a separate worker process
- */
-async function processDocument(
-  documentId: string, 
-  imageUrl: string, 
-  documentType: 'PAN' | 'Aadhar' | 'DrivingLicense'
-) {
-  try {
-    // Connect to DB if not already connected
-    await connectDB();
-    
-    // Extract text from the document using OCR
-    const extractedText = await extractTextFromImage(imageUrl);
-    
-    // Verify the document based on extracted text
-    const { isVerified, details } = verifyDocumentText(documentType, extractedText);
-    
-    // Update the document in the database
-    await Document.findByIdAndUpdate(documentId, {
-      extractedText,
-      isVerified,
-      verificationDetails: details,
-      status: 'completed'
-    });
-    
-    console.log(`Document processed: ${documentId}, Verified: ${isVerified}`);
-  } catch (error) {
-    console.error('Error processing document:', error);
-    
-    // Update the document status to 'failed'
-    await Document.findByIdAndUpdate(documentId, {
-      status: 'failed',
-      verificationDetails: error instanceof Error ? error.message : 'Unknown error occurred during processing'
-    });
-  }
-} 

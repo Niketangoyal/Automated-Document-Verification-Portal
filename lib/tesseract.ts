@@ -1,4 +1,3 @@
-import { createWorker } from 'tesseract.js';
 import { processDocument } from './document-extractor';
 
 /**
@@ -32,7 +31,7 @@ console.log("extracted text",text)
       const buffer = Buffer.from(await response.arrayBuffer());
       const { data: { text } } = await Tesseract.recognize(buffer, 'eng');
       return text.trim();
-    } catch (fallbackError) {
+    } catch {
       throw new Error('Failed to extract text from image after fallback');
     }
   }

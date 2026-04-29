@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb", // Increase the limit (set as per requirement)
     },
   },
+ 
 };
 
 export default nextConfig;

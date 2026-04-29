@@ -19,10 +19,11 @@ interface Cached {
 
 // Define the global type with mongoose property
 declare global {
+  // eslint-disable-next-line no-var
   var mongoose: Cached;
 }
 
-let cached: Cached = global.mongoose || { conn: null, promise: null };
+const cached: Cached = global.mongoose || { conn: null, promise: null };
 
 if (!global.mongoose) {
   global.mongoose = cached;

@@ -10,7 +10,7 @@ async function isAdmin(clerkId: string) {
   try {
     const user = await User.findOne({ clerkId });
     return user?.role === 'admin';
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -20,6 +20,7 @@ async function isAdmin(clerkId: string) {
  * Get system-wide statistics for the admin dashboard
  */
 export async function GET(req: NextRequest) {
+  void req;
   try {
     // Authenticate the user
     const { userId: clerkId } = await auth();
