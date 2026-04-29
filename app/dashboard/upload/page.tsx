@@ -12,16 +12,43 @@ import { toast } from "sonner";
 export default function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const [documentType, setDocumentType] = useState<string>("PAN");
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle file input change
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  if (e.target.files && e.target.files.length > 0) {
+    const selectedFiles = Array.from(e.target.files);
+
+    // Filter logic: Only allow common image formats
+    const validFiles = selectedFiles.filter((file) => {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const isImage = file.type.startsWith('image/') || 
+                      /\.(jpg|jpeg|png|webp)$/i.test(file.name);
+
+      if (isPdf) {
+        toast.error(`"${file.name}" is a PDF. Only images (JPG, PNG) are allowed.`);
+        return false;
+      }
+
+      if (!isImage) {
+        toast.error(`"${file.name}" is not a supported image format.`);
+        return false;
+      }
+
+      return true;
+    });
+
+    // Only update state if there are valid files
+    if (validFiles.length > 0) {
+      setFiles((prevFiles) => [...prevFiles, ...validFiles]);
     }
-  };
+
+    // Reset the input value so the same file can be selected again if deleted
+    e.target.value = '';
+  }
+};
 
   // Handle drag events
   const handleDrag = (e: React.DragEvent) => {
@@ -35,16 +62,29 @@ export default function UploadPage() {
   };
 
   // Handle drop event
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+const handleDrop = (e: React.DragEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const newFiles = Array.from(e.dataTransfer.files);
-      setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    
+    // Filter out PDFs and identify if any were found
+    const hasPdf = droppedFiles.some(file => file.type === 'application/pdf' || file.name.endsWith('.pdf'));
+    
+    if (hasPdf) {
+      toast.error("PDF files are not supported. Please upload images (JPG/PNG).");
     }
-  };
+
+    // Only add files that are NOT PDFs
+    const validFiles = droppedFiles.filter(file => file.type !== 'application/pdf' && !file.name.endsWith('.pdf'));
+
+    if (validFiles.length > 0) {
+      setFiles((prevFiles) => [...prevFiles, ...validFiles]);
+    }
+  }
+};
 
   // Handle file removal
   const handleRemoveFile = (index: number) => {
@@ -68,8 +108,17 @@ export default function UploadPage() {
     setIsUploading(true);
 
     try {
-      // Simulate upload - This would call an API in a real implementation
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const formData = new FormData();
+      files.forEach((file) => formData.append("files", file)); // Append each file
+      formData.append("documentType", documentType); // Append selected document type
+      const res = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData,
+      });
+    
+      const data = await res.json();
+      console.log(data); // { success: true, uploadedFiles: [...] }
+      
       toast.success("Documents uploaded successfully!");
       setFiles([]);
       // Navigate to dashboard after successful upload
@@ -78,7 +127,7 @@ export default function UploadPage() {
       }, 1500);
     } catch (error) {
       console.error("Upload failed:", error);
-      toast.error("Upload failed. Please try again.");
+      toast.error("Upload failed. Please try again.3");
     } finally {
       setIsUploading(false);
     }
@@ -111,6 +160,20 @@ export default function UploadPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="documentType">Document Type</Label>
+            <select
+              id="documentType"
+              value={documentType}
+              onChange={(e) => setDocumentType(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="PAN">PAN Card</option>
+              <option value="Aadhar">Aadhar Card</option>
+              <option value="DrivingLicense">Driving License</option>
+            </select>
+          </div>
+
           {/* Drag and Drop Area */}
           <div
             onDragEnter={handleDrag}
@@ -146,7 +209,7 @@ export default function UploadPage() {
                   className="hidden"
                   type="file"
                   multiple
-                  accept=".pdf,.jpg,.jpeg,.png"
+                  accept=".jpg,.jpeg,.png"
                   onChange={handleFileChange}
                 />
               </div>
@@ -219,7 +282,7 @@ export default function UploadPage() {
           <ul className="list-disc pl-5 space-y-2">
             <li>Upload clear and legible documents</li>
             <li>Ensure all information is visible and not cut off</li>
-            <li>File formats accepted: PDF, JPG, JPEG, PNG</li>
+            <li>File formats accepted:  JPG, JPEG, PNG</li>
             <li>Maximum file size: 10MB per document</li>
             <li>Do not upload password-protected or encrypted documents</li>
             <li>Document should not have any watermark or overlay</li>

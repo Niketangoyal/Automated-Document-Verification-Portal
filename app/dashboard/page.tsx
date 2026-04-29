@@ -5,42 +5,137 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Clock, FileCheck, FilePlus, FileX, Upload } from "lucide-react";
-
-// Mock data - This would come from API in a real implementation
-const recentDocuments = [
-  {
-    id: "doc-001",
-    name: "Passport.pdf",
-    status: "verified",
-    date: "2023-10-15",
-  },
-  {
-    id: "doc-002",
-    name: "DriverLicense.jpg",
-    status: "pending",
-    date: "2023-10-14",
-  },
-  {
-    id: "doc-003",
-    name: "BirthCertificate.pdf",
-    status: "rejected",
-    date: "2023-10-12",
-  },
-  {
-    id: "doc-004",
-    name: "IDCard.jpg",
-    status: "verified",
-    date: "2023-10-10",
-  },
-];
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+export interface DocumentType {
+  _id: string;
+  userId: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: "PAN" | "Aadhar" | "DrivingLicense" | "PDF";
+  publicId: string;
+  extractedText?: string;
+  isVerified: boolean;
+  status: "pending" | "processing" | "completed" | "failed";
+  verificationDetails?: string;
+  uploadedAt: string; // Date as string (ISO format)
+  createdAt: string;
+  updatedAt: string;
+}
+interface DocumentResponse {
+  documents: DocumentType[];
+  pagination: {
+    total: number;
+    currentPage: number;
+    pageSize: number;
+  };
+}
 
 export default function DashboardPage() {
+  const [recentDocuments, setRecentDocuments] = useState<DocumentType[]>([]);
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const res = await fetch("/api/documents?limit=100", { cache: "no-store" });
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch documents");
+        }
+
+        const data: DocumentResponse = await res.json();
+        console.log(data)
+        setRecentDocuments(data.documents || []);
+        
+      } catch (err) {
+        toast.error("Upload failed. Please try again.");
+      } 
+    };
+
+    fetchDocuments();
+  }, []);
+
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  const handleVerify = async (docId: string) => {
+    setVerifyingId(docId);
+    try {
+      const res = await fetch(`/api/documents/verify/${docId}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || "Verification failed");
+      console.log("data",data)
+      toast.success("Document verification completed!");
+      
+      // Update the document in state
+      setRecentDocuments(prev => prev.map(doc => {
+        if (doc._id === docId) {
+          return {
+            ...doc,
+            status: data.document?.status || "completed",
+            isVerified: data.verificationResult?.isVerified || false,
+            verificationDetails: data.document?.verificationDetails || ""
+          };
+        }
+        return doc;
+      }));
+    } catch (error: any) {
+      toast.error(error.message || "Failed to verify document");
+      // Update state to failed if it failed
+      setRecentDocuments(prev => prev.map(doc => {
+        if (doc._id === docId) {
+          return { ...doc, status: "failed" };
+        }
+        return doc;
+      }));
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const getDocStatus = (doc: DocumentType) => {
+    if (doc.status === "completed" && doc.isVerified) return "verified";
+    if (doc.status === "completed" && !doc.isVerified) return "rejected";
+    if (doc.status === "failed") return "rejected";
+    if (doc.status === "processing") return "processing";
+    return "pending";
+  };
+
+  // Get current date
+const now = new Date();
+
+// Get last month
+const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+// Function to count docs uploaded in last month
+const countLastMonth = (status?: string) => {
+  return recentDocuments.filter(doc => {
+    const uploaded = new Date(doc.createdAt);
+    const isLastMonth = uploaded >= lastMonth && uploaded < thisMonth;
+    if (status) {
+      return isLastMonth && getDocStatus(doc) === status;
+    }
+    return isLastMonth;
+  }).length;
+};
+
+// Counts for cards
+const totalLastMonth = countLastMonth();
+const verifiedLastMonth = countLastMonth("verified");
+const pendingLastMonth = countLastMonth("pending");
+const rejectedLastMonth = countLastMonth("rejected");
+
+const verifiedCount = recentDocuments.filter(doc => getDocStatus(doc) === "verified").length;
+const pendingCount = recentDocuments.filter(doc => getDocStatus(doc) === "pending" || getDocStatus(doc) === "processing").length;
+const rejectedCount = recentDocuments.filter(doc => getDocStatus(doc) === "rejected").length;
+
   // Function to get status icon based on document status
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "verified":
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case "pending":
+      case "processing":
         return <Clock className="h-5 w-5 text-amber-500" />;
       case "rejected":
         return <FileX className="h-5 w-5 text-red-500" />;
@@ -56,6 +151,8 @@ export default function DashboardPage() {
         return <span className="text-green-500 font-medium">Verified</span>;
       case "pending":
         return <span className="text-amber-500 font-medium">Pending</span>;
+      case "processing":
+        return <span className="text-amber-500 font-medium">Processing</span>;
       case "rejected":
         return <span className="text-red-500 font-medium">Rejected</span>;
       default:
@@ -84,9 +181,9 @@ export default function DashboardPage() {
             <FileCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
+            <div className="text-2xl font-bold">{recentDocuments.length}</div>
             <p className="text-xs text-muted-foreground">
-              +2 from last month
+              {totalLastMonth} from last month
             </p>
           </CardContent>
         </Card>
@@ -98,9 +195,9 @@ export default function DashboardPage() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">7</div>
+            <div className="text-2xl font-bold">{verifiedCount}</div>
             <p className="text-xs text-muted-foreground">
-              +1 from last month
+              {verifiedLastMonth} from last month
             </p>
           </CardContent>
         </Card>
@@ -112,9 +209,9 @@ export default function DashboardPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{pendingCount}</div>
             <p className="text-xs text-muted-foreground">
-              +1 from last month
+              {pendingLastMonth} from last month
             </p>
           </CardContent>
         </Card>
@@ -126,9 +223,9 @@ export default function DashboardPage() {
             <FileX className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-2xl font-bold">{rejectedCount}</div>
             <p className="text-xs text-muted-foreground">
-              No change from last month
+              {rejectedLastMonth} from last month
             </p>
           </CardContent>
         </Card>
@@ -151,9 +248,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentDocuments.map((doc) => (
+                {recentDocuments.length>0  &&(showAll ? recentDocuments : recentDocuments.slice(0, 5)).map((doc) => (
                   <div
-                    key={doc.id}
+                    key={doc._id}
                     className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
                   >
                     <div className="flex items-center space-x-4">
@@ -161,22 +258,36 @@ export default function DashboardPage() {
                         <FileCheck className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{doc.name}</p>
+                        <p className="font-medium">{doc.fileName}</p>
                         <p className="text-sm text-muted-foreground">
-                          Uploaded on {doc.date}
+                          Uploaded on {doc.createdAt}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {getStatusIcon(doc.status)}
-                      {getStatusText(doc.status)}
+                      {getDocStatus(doc) === "pending" || getDocStatus(doc) === "processing" ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleVerify(doc._id)}
+                          disabled={verifyingId === doc._id}
+                        >
+                          {verifyingId === doc._id ? "Verifying..." : "Verify"}
+                        </Button>
+                      ) : null}
+                      {getStatusIcon(getDocStatus(doc))}
+                      {getStatusText(getDocStatus(doc))}
                     </div>
                   </div>
                 ))}
               </div>
-              {recentDocuments.length > 4 && (
+              {recentDocuments.length > 5 && (
                 <div className="mt-4 flex justify-center">
-                  <Button variant="outline">View All Documents</Button>
+                  {!showAll ? (
+                    <Button variant="outline" onClick={() => setShowAll(true)}>View All Documents</Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => setShowAll(false)}>Show Less</Button>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -193,10 +304,10 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {recentDocuments
-                  .filter((doc) => doc.status === "verified")
+                  .filter((doc) => getDocStatus(doc) === "verified")
                   .map((doc) => (
                     <div
-                      key={doc.id}
+                      key={doc._id}
                       className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
                     >
                       <div className="flex items-center space-x-4">
@@ -204,15 +315,15 @@ export default function DashboardPage() {
                           <FileCheck className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{doc.name}</p>
+                          <p className="font-medium">{doc.fileName}</p>
                           <p className="text-sm text-muted-foreground">
-                            Uploaded on {doc.date}
+                            Uploaded on {doc.createdAt}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        {getStatusIcon(doc.status)}
-                        {getStatusText(doc.status)}
+                        {getStatusIcon(getDocStatus(doc))}
+                        {getStatusText(getDocStatus(doc))}
                       </div>
                     </div>
                   ))}
@@ -231,10 +342,10 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {recentDocuments
-                  .filter((doc) => doc.status === "pending")
+                  .filter((doc) => getDocStatus(doc) === "pending" || getDocStatus(doc) === "processing")
                   .map((doc) => (
                     <div
-                      key={doc.id}
+                      key={doc._id}
                       className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
                     >
                       <div className="flex items-center space-x-4">
@@ -242,15 +353,23 @@ export default function DashboardPage() {
                           <FileCheck className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{doc.name}</p>
+                          <p className="font-medium">{doc.fileName}</p>
                           <p className="text-sm text-muted-foreground">
-                            Uploaded on {doc.date}
+                            Uploaded on {doc.createdAt}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        {getStatusIcon(doc.status)}
-                        {getStatusText(doc.status)}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleVerify(doc._id)}
+                          disabled={verifyingId === doc._id}
+                        >
+                          {verifyingId === doc._id ? "Verifying..." : "Verify"}
+                        </Button>
+                        {getStatusIcon(getDocStatus(doc))}
+                        {getStatusText(getDocStatus(doc))}
                       </div>
                     </div>
                   ))}
@@ -269,10 +388,10 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {recentDocuments
-                  .filter((doc) => doc.status === "rejected")
+                  .filter((doc) => getDocStatus(doc) === "rejected")
                   .map((doc) => (
                     <div
-                      key={doc.id}
+                      key={doc._id}
                       className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
                     >
                       <div className="flex items-center space-x-4">
@@ -280,15 +399,15 @@ export default function DashboardPage() {
                           <FileCheck className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{doc.name}</p>
+                          <p className="font-medium">{doc.fileName}</p>
                           <p className="text-sm text-muted-foreground">
-                            Uploaded on {doc.date}
+                            Uploaded on {doc.createdAt}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        {getStatusIcon(doc.status)}
-                        {getStatusText(doc.status)}
+                        {getStatusIcon(getDocStatus(doc))}
+                        {getStatusText(getDocStatus(doc))}
                       </div>
                     </div>
                   ))}

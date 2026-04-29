@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";  // Get userId after login
+
 import {
   SignInButton,
   SignUpButton,
@@ -15,7 +17,18 @@ import {
   SignedOut,
   UserButton,
 } from '@clerk/nextjs'
+import { useEffect } from "react";
 export function Header() {
+  const { isSignedIn } = useAuth();  // Clerk auth hook
+
+  useEffect(() => {
+    const syncUser = async () => {
+      if (isSignedIn) {
+        await fetch("/api/users/sync", { method: "POST" });
+      }
+    };
+    syncUser();
+  }, [isSignedIn]);  // Sync user only when signed in
   const pathname = usePathname();
   const isHome = pathname === "/";
   const showAuthButtons = isHome;
