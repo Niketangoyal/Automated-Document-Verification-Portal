@@ -15,7 +15,6 @@ console.log("image url ",imageUrl)
         errorHandler: (err) => console.error("Tesseract Internal Error:", err),
       }
     );
-console.log("extracted text",text)
     return text.trim();
   } catch (error) {
     console.error('Error extracting text from image:', error);
@@ -45,7 +44,6 @@ export function verifyDocumentText(docType: 'PAN' | 'Aadhar' | 'DrivingLicense',
 
   // Process document using specialized extractors
   const extractedInfo = processDocument(docType, text);
-console.log("extractedINfo",extractedInfo)
   return {
     isVerified: extractedInfo.isValid,
     details: extractedInfo

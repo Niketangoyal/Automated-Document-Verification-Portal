@@ -44,7 +44,6 @@ export default function DashboardPage() {
         }
 
         const data: DocumentResponse = await res.json();
-        console.log(data)
         setRecentDocuments(data.documents || []);
         
       } catch {
@@ -63,7 +62,6 @@ export default function DashboardPage() {
       const res = await fetch(`/api/documents/verify/${docId}`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || "Verification failed");
-      console.log("data",data)
       toast.success("Document verification completed!");
       
       // Update the document in state

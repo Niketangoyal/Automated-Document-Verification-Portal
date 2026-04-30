@@ -116,7 +116,6 @@ const handleDrop = (e: React.DragEvent) => {
       });
     
       const data = await res.json();
-      console.log(data); // { success: true, uploadedFiles: [...] }
       
       toast.success("Documents uploaded successfully!");
       setFiles([]);
