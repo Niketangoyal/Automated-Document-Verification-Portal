@@ -4,19 +4,14 @@ import { processDocument } from './document-extractor';
  * Extract text from an image URL or Buffer
  */
 import Tesseract from 'tesseract.js';
-import path from 'path';
 
 export async function extractTextFromImage(imageUrl: string): Promise<string> {
   try {
-    // We must manually resolve the worker path for Node.js environments in Next.js
-    const workerPath = path.resolve(process.cwd(), 'node_modules/tesseract.js/src/worker-script/node/index.js');
 console.log("image url ",imageUrl)
     const { data: { text } } = await Tesseract.recognize(
       imageUrl,
       'eng',
       {
-        // Force Tesseract to use the absolute path we just resolved
-        workerPath: workerPath,
         errorHandler: (err) => console.error("Tesseract Internal Error:", err),
       }
     );
